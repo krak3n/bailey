@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package client.store.svc;
+
+option go_package = "pkg/api/clientstoresvc";
+
+service ClientStoreService {
+  rpc Upsert(stream UpsertRequest) returns (stream UpsertResponse);
+}
+
+message Client {
+  int64 id = 1;
+  string name = 2;
+  string phone_number = 3;
+  string email = 4;
+}
+
+message UpsertRequest {
+  Client client = 1;
+}
+
+message UpsertResponse {
+  Client client = 1;
+}
