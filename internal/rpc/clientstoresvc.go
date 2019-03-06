@@ -2,7 +2,9 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log"
 
 	"github.com/krak3n/bailey/internal/storage"
 	"github.com/krak3n/bailey/pkg/api/clientstoresvc"
@@ -34,12 +36,17 @@ func (svc *ClientStoreService) Upsert(stream clientstoresvc.ClientStoreService_U
 			return err // TODO: Status codes with status details
 		}
 		// TODO: format phone numbers
-		svc.store.UpsertClient(context.Background(), &storage.Client{
+		log.Println(fmt.Sprintf("upserting client: %d", req.Client.Id))
+		err = svc.store.UpsertClient(context.Background(), &storage.Client{
 			ID:          req.Client.Id,
 			Name:        req.Client.Name,
 			PhoneNumber: req.Client.PhoneNumber,
 			Email:       req.Client.Email,
 		})
+		if err != nil {
+			return err
+		}
+		processed++
 	}
 
 	return stream.SendAndClose(&clientstoresvc.UpsertResponse{
