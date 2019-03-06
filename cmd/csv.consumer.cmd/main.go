@@ -32,6 +32,7 @@ func check(err error) {
 	}
 }
 
+// TODO: this code certainly needs a cleanup
 func main() {
 	flag.Parse()
 
@@ -47,23 +48,18 @@ func main() {
 	stream, err := client.Upsert(context.Background())
 	check(err)
 
-	doneC := make(chan struct{})
+	sigC := make(chan os.Signal, 1)
+	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go func() {
 		if err := syncer.SyncTo(write(stream)); err != nil {
 			log.Println(err)
 		}
-		close(doneC)
+		sigC <- syscall.SIGQUIT
 	}()
 
-	go func() {
-		sigC := make(chan os.Signal, 1)
-		signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-		log.Println(<-sigC)
-		syncer.Close()
-	}()
-
-	<-doneC
+	log.Println(<-sigC)
+	syncer.Close()
 
 	rsp, err := stream.CloseAndRecv()
 	switch err {
