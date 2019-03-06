@@ -19,13 +19,19 @@ $(TOOLS): %:
 	GOBIN=$(CURDIR)/bin go install $*
 
 images:
-	docker build -f build/client.store.svc/Dockerfile -t 90poe/client.store.svc:latest .
+	docker build -f build/client.store.svc/Dockerfile -t bailey/client.store.svc:latest .
 
 csv.consumer.cmd:
 	go build -o bin/csv.consumer.cmd ./cmd/csv.consumer.cmd
 
 client.store.svc:
 	go build -o bin/client.store.svc ./cmd/client.store.svc
+
+test:
+	go test -v ./...
+
+test-integration:
+	go test -v -tags integration ./...
 
 PSQL_URI = "host=$(DB_HOST) user=$(DB_USER) dbname=$(DB_NAME) sslmode=$(DB_SSL_MODE) password=$(DB_PASSWORD)"
 
