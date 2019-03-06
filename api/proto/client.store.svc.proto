@@ -5,7 +5,7 @@ package client.store.svc;
 option go_package = "pkg/api/clientstoresvc";
 
 service ClientStoreService {
-  rpc Upsert(stream UpsertRequest) returns (stream UpsertResponse);
+  rpc Upsert(stream UpsertRequest) returns (UpsertResponse);
 }
 
 message Client {
@@ -20,5 +20,5 @@ message UpsertRequest {
 }
 
 message UpsertResponse {
-  Client client = 1;
+  int64 processed = 1;
 }
