@@ -1,20 +1,25 @@
 package main
 
 import (
-	"encoding/csv"
+	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
-	"sync"
+	"strconv"
 	"syscall"
+
+	"github.com/krak3n/bailey/internal/csv"
+	"github.com/krak3n/bailey/pkg/api/clientstoresvc"
+	"google.golang.org/grpc"
 )
 
-var csvpath = flag.String("csv", "", "CSV file to process")
-
-var closeC = make(chan bool, 0)
+var (
+	csvpath = flag.String("csv", "", "CSV file to process")
+	server  = flag.String("", "127.0.0.1:3000", "server address")
+	closeC  = make(chan bool, 0)
+)
 
 type reader interface {
 	Read() ([]string, error)
@@ -33,64 +38,63 @@ func main() {
 	f, err := os.Open(*csvpath)
 	check(err)
 
-	r := csv.NewReader(f)
+	syncer := csv.NewSyncer(f)
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	conn, err := grpc.Dial(*server, grpc.WithInsecure())
+	check(err)
 
-	linesC := make(chan []string, 1)
+	client := clientstoresvc.NewClientStoreServiceClient(conn)
+	stream, err := client.Upsert(context.Background())
+	check(err)
+
+	doneC := make(chan struct{})
+
 	go func() {
-		defer wg.Done()
-		readLines(r, (chan<- []string)(linesC))
-	}()
-
-	go func() {
-		defer wg.Done()
-		processLines((<-chan []string)(linesC))
-	}()
-
-	sigC := make(chan os.Signal, 1)
-	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	fmt.Println(<-sigC)
-
-	close(closeC)
-
-	wg.Wait()
-	check(f.Close())
-}
-
-// readLines reads lines from a reader and puts them on a channel for processing
-func readLines(r reader, c chan<- []string) {
-	for {
-		select {
-		case <-closeC:
-			return
-		default:
-			line, err := r.Read()
-			if err == io.EOF {
-				fmt.Println("Done")
-				return
-			}
-			check(err)
-			c <- line
+		if err := syncer.SyncTo(write(stream)); err != nil {
+			log.Println(err)
 		}
+		close(doneC)
+	}()
+
+	go func() {
+		sigC := make(chan os.Signal, 1)
+		signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+		log.Println(<-sigC)
+		syncer.Close()
+	}()
+
+	<-doneC
+
+	rsp, err := stream.CloseAndRecv()
+	switch err {
+	case nil:
+		log.Println(fmt.Sprintf("Processed: %d", rsp.Processed))
+	default:
+		log.Println(err)
+	}
+
+	if err := conn.Close(); err != nil {
+		log.Println(err)
+	}
+
+	if err := f.Close(); err != nil {
+		log.Println(err)
 	}
 }
 
-// processLines takes channel of csv lines to process
-// TODO: store state of where got to in processing the CSV?
-func processLines(c <-chan []string) {
-	var i int
-	for {
-		select {
-		case <-closeC:
-			return
-		case line := <-c:
-			i++
-			if i == 1 { // skip header
-				continue
-			}
-			fmt.Println(line)
+func write(stream clientstoresvc.ClientStoreService_UpsertClient) csv.WriteFunc {
+	return func(record []string) error {
+		id, err := strconv.ParseInt(record[0], 10, 64)
+		if err != nil {
+			return err
 		}
+		return stream.Send(&clientstoresvc.UpsertRequest{
+			Client: &clientstoresvc.Client{
+				Id:          id,
+				Name:        record[1],
+				Email:       record[2],
+				PhoneNumber: record[3], // TODO: phone formatting
+			},
+		})
 	}
 }
