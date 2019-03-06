@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -16,8 +15,6 @@ import (
 var csvpath = flag.String("csv", "", "CSV file to process")
 
 var closeC = make(chan bool, 0)
-
-var wg sync.WaitGroup
 
 type reader interface {
 	Read() ([]string, error)
@@ -36,13 +33,12 @@ func main() {
 	f, err := os.Open(*csvpath)
 	check(err)
 
-	sigC := make(chan os.Signal, 1)
-	linesC := make(chan []string, 1)
+	r := csv.NewReader(f)
 
-	r := csv.NewReader(bufio.NewReader(f))
-
+	var wg sync.WaitGroup
 	wg.Add(2)
 
+	linesC := make(chan []string, 1)
 	go func() {
 		defer wg.Done()
 		readLines(r, (chan<- []string)(linesC))
@@ -53,6 +49,7 @@ func main() {
 		processLines((<-chan []string)(linesC))
 	}()
 
+	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	fmt.Println(<-sigC)
 
@@ -62,6 +59,7 @@ func main() {
 	check(f.Close())
 }
 
+// readLines reads lines from a reader and puts them on a channel for processing
 func readLines(r reader, c chan<- []string) {
 	for {
 		select {
@@ -79,6 +77,8 @@ func readLines(r reader, c chan<- []string) {
 	}
 }
 
+// processLines takes channel of csv lines to process
+// TODO: store state of where got to in processing the CSV?
 func processLines(c <-chan []string) {
 	var i int
 	for {
