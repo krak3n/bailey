@@ -9,12 +9,15 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
 var csvpath = flag.String("csv", "", "CSV file to process")
 
-var sigC = make(chan os.Signal, 1)
+var closeC = make(chan bool, 0)
+
+var wg sync.WaitGroup
 
 type reader interface {
 	Read() ([]string, error)
@@ -33,26 +36,61 @@ func main() {
 	f, err := os.Open(*csvpath)
 	check(err)
 
+	sigC := make(chan os.Signal, 1)
+	linesC := make(chan []string, 1)
+
 	r := csv.NewReader(bufio.NewReader(f))
-	go readCSV(r)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		readLines(r, (chan<- []string)(linesC))
+	}()
+
+	go func() {
+		defer wg.Done()
+		processLines((<-chan []string)(linesC))
+	}()
 
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	fmt.Println(<-sigC)
 
-	sig := <-sigC
-	fmt.Println(sig)
+	close(closeC)
+	check(f.Close())
+
+	wg.Wait()
 }
 
-func readCSV(r reader) {
-	for i := 0; ; i++ {
-		line, err := r.Read()
-		if err == io.EOF {
-			fmt.Println("Done")
-			break
+func readLines(r reader, c chan<- []string) {
+	for {
+		select {
+		case <-closeC:
+			return
+		default:
+			line, err := r.Read()
+			if err == io.EOF {
+				fmt.Println("Done")
+				return
+			}
+			check(err)
+			c <- line
 		}
-		check(err)
-		if i == 0 { // Skip the header
-			continue
+	}
+}
+
+func processLines(c <-chan []string) {
+	var i int
+	for {
+		select {
+		case <-closeC:
+			return
+		case line := <-c:
+			i++
+			if i == 1 { // skip header
+				continue
+			}
+			fmt.Println(line)
 		}
-		fmt.Println(line)
 	}
 }
