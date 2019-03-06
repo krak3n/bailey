@@ -52,7 +52,7 @@ func main() {
 	log.Println(<-sigC)
 
 	log.Println("stopping server")
-	srv.GracefulStop()
+	srv.Stop() // TODO: graceful stop - the handler will need a Close method
 
 	wg.Wait()
 }
