@@ -41,6 +41,8 @@ migrate_up:
 migrate_down:
 	goose -dir migrations postgres $(PSQL_URI) down
 
+run: images up
+
 up:
 	docker-compose -f deployments/docker-compose.yml up -d
 
