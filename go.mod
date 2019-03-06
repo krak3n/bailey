@@ -12,5 +12,6 @@ require (
 	github.com/pressly/goose v2.6.0+incompatible
 	github.com/stretchr/testify v1.3.0
 	github.com/ziutek/mymysql v1.5.4 // indirect
+	google.golang.org/grpc v1.19.0
 	upper.io/db.v3 v3.5.7+incompatible
 )

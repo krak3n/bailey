@@ -4,8 +4,10 @@
 package clientstoresvc
 
 import (
+	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	grpc "google.golang.org/grpc"
 	math "math"
 )
 
@@ -187,4 +189,110 @@ var fileDescriptor_639564e7882e1d32 = []byte{
 	0xfc, 0x3f, 0x90, 0x04, 0xea, 0xec, 0x4e, 0x3d, 0xcf, 0xfd, 0xfb, 0xeb, 0xa2, 0xf3, 0x66, 0x91,
 	0xc2, 0x92, 0xe5, 0x41, 0xaf, 0x0b, 0xb9, 0xf8, 0xcd, 0x67, 0x00, 0x00, 0x00, 0xff, 0xff, 0x73,
 	0x0c, 0xf6, 0x00, 0x8b, 0x01, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// ClientStoreServiceClient is the client API for ClientStoreService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ClientStoreServiceClient interface {
+	Upsert(ctx context.Context, opts ...grpc.CallOption) (ClientStoreService_UpsertClient, error)
+}
+
+type clientStoreServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewClientStoreServiceClient(cc *grpc.ClientConn) ClientStoreServiceClient {
+	return &clientStoreServiceClient{cc}
+}
+
+func (c *clientStoreServiceClient) Upsert(ctx context.Context, opts ...grpc.CallOption) (ClientStoreService_UpsertClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_ClientStoreService_serviceDesc.Streams[0], "/client.store.svc.ClientStoreService/Upsert", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &clientStoreServiceUpsertClient{stream}
+	return x, nil
+}
+
+type ClientStoreService_UpsertClient interface {
+	Send(*UpsertRequest) error
+	CloseAndRecv() (*UpsertResponse, error)
+	grpc.ClientStream
+}
+
+type clientStoreServiceUpsertClient struct {
+	grpc.ClientStream
+}
+
+func (x *clientStoreServiceUpsertClient) Send(m *UpsertRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *clientStoreServiceUpsertClient) CloseAndRecv() (*UpsertResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(UpsertResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// ClientStoreServiceServer is the server API for ClientStoreService service.
+type ClientStoreServiceServer interface {
+	Upsert(ClientStoreService_UpsertServer) error
+}
+
+func RegisterClientStoreServiceServer(s *grpc.Server, srv ClientStoreServiceServer) {
+	s.RegisterService(&_ClientStoreService_serviceDesc, srv)
+}
+
+func _ClientStoreService_Upsert_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ClientStoreServiceServer).Upsert(&clientStoreServiceUpsertServer{stream})
+}
+
+type ClientStoreService_UpsertServer interface {
+	SendAndClose(*UpsertResponse) error
+	Recv() (*UpsertRequest, error)
+	grpc.ServerStream
+}
+
+type clientStoreServiceUpsertServer struct {
+	grpc.ServerStream
+}
+
+func (x *clientStoreServiceUpsertServer) SendAndClose(m *UpsertResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *clientStoreServiceUpsertServer) Recv() (*UpsertRequest, error) {
+	m := new(UpsertRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _ClientStoreService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "client.store.svc.ClientStoreService",
+	HandlerType: (*ClientStoreServiceServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Upsert",
+			Handler:       _ClientStoreService_Upsert_Handler,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "client.store.svc.proto",
 }

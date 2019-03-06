@@ -11,4 +11,4 @@ all: $(PROTOS)
 .PHONY: $(PROTOS)
 $(PROTOS): %.proto:
 	$(info Generating $*.proto)
-	@protoc -I . --go_out=.:$(OUT) $*.proto
+	@protoc -I . --go_out=plugins=grpc:$(OUT) $*.proto
