@@ -57,9 +57,9 @@ func main() {
 	fmt.Println(<-sigC)
 
 	close(closeC)
-	check(f.Close())
 
 	wg.Wait()
+	check(f.Close())
 }
 
 func readLines(r reader, c chan<- []string) {
