@@ -25,14 +25,13 @@ func (s *Store) UpsertClient(ctx context.Context, client *storage.Client) error 
 	return s.session.Tx(ctx, func(tx sqlbuilder.Tx) error {
 		// TODO: consider a Insert On Conflict Update, avoids a read first
 		res := tx.Collection(storage.ClientsTable).Find(db.Cond{"id": client.ID})
-		err := res.One(client)
-		switch err {
-		case nil:
-			return res.Update(client)
-		case db.ErrNoMoreRows:
-			return tx.Collection(storage.ClientsTable).InsertReturning(client)
-		default:
+		total, err := res.Count()
+		if err != nil {
 			return err
 		}
+		if total == 0 {
+			return tx.Collection(storage.ClientsTable).InsertReturning(client)
+		}
+		return res.Update(client)
 	})
 }
